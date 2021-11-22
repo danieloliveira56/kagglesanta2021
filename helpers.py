@@ -1,4 +1,5 @@
 import subprocess
+import itertools
 import numpy as np
 
 SUPERPERMUTATIONS = {
@@ -148,7 +149,7 @@ def map_solution(words, solution):
     }
     # Words that can be found at each position
     position_map = {
-        i: [] for i in range(len(solution) - num_letters)
+        i: None for i in range(len(solution))
     }
 
     for i in range(len(solution) - num_letters):
@@ -157,8 +158,7 @@ def map_solution(words, solution):
             if w not in word_map:
                 word_map[w] = []
             word_map[w].append(i)
-            position_map[i].append(w)
-
+            position_map[i] = w
     return word_map, position_map
 
 
@@ -167,13 +167,17 @@ def get_words_in_string(num_letters, string1):
     word_list = set()
     for i in range(len(string1) - num_letters + 1):
         w = string1[i:i + num_letters]
-        if "*" in w:
-            for letter in range(1, num_letters + 1):
-                new_w = w.replace("*", str(letter))
-                if not is_perm(new_w):
-                    continue
-                word_list.add(new_w)
-        else:
+
+        for p in range(num_letters-1, 0, -1):
+            if "*" * p in w:
+                existing_letters = [int(c) for c in w if c != '*']
+                letters = [letter for letter in list(range(1, num_letters + 1)) if letter not in existing_letters]
+                for x in itertools.permutations(letters):
+                    new_w = w.replace("*" * p, "".join(map(str, list(x))))
+                    if not is_perm(new_w):
+                        continue
+                    word_list.add(new_w)
+                break
             if not is_perm(w):
                 continue
             word_list.add(w)

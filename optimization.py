@@ -9,13 +9,14 @@ def get_optimal_solution(words, initial_solution=None, num_strings=3, num_wildca
                          letter_spacing=1, fix_suffix=0, assume_shortening=0):
     opt_time = time.time()
 
-    print(num_wildcards)
     num_letters = len(words[0])
     special1 = SPECIAL_CHARS[num_letters][0]
     special2 = SPECIAL_CHARS[num_letters][1]
 
     print("Running optimization function...\n")
     print(f"Wildcards: {num_wildcards}")
+    print(f"fix_suffix: {fix_suffix}")
+
 
     if not initial_solution:
         initial_solution = get_tsp_solution(words)
@@ -78,6 +79,8 @@ def get_optimal_solution(words, initial_solution=None, num_strings=3, num_wildca
     if not linear_relaxation and not assume_shortening:
         wildcards_to_place = num_wildcards
         for i, letter in enumerate(initial_solution):
+            if i == UB:
+                continue
             if letter == '*':
                 x[i, letters8[-1], 0].start = 1
                 wildcards_to_place -= 1
@@ -165,7 +168,7 @@ def get_optimal_solution(words, initial_solution=None, num_strings=3, num_wildca
                       for k in routes
                       for w in words
                       for j in range(num_letters)
-                      ), "Wordx").Lazy = 1
+                      ), "WordAt").Lazy = 1
     else:
         print(f"Writing {len(positions[:(-num_letters + 1)]) * len(routes) * len(words)} Wordx constraints...")
         m.addConstrs((num_letters * z[i, k, w] <= sum(x[i + j, int(w[j]), k] + (x[i + j, letters8[-1], k] if num_wildcards else 0) for j in range(num_letters))
@@ -180,21 +183,21 @@ def get_optimal_solution(words, initial_solution=None, num_strings=3, num_wildca
         print(f"Writing {LB * len(routes)} Letter at i < LB constraints...")
         m.addConstrs((x.sum(i, '*', k) == 1
                       for k in routes
-                      for i in positions[:LB + 1]), "LetterAti")
+                      for i in positions[:LB]), "LetterAti")
 
     if LB and word_density:
         # There's at least word_density[0] word at any string of length word_density[1] contained lower than LB
         print(f"Writing {(LB - word_density[1]) * len(routes)} Word at i < LB  - 7 constraints...")
         m.addConstrs((sum(z.sum(i + j, k, '*') for j in range(word_density[1])) >= word_density[0]
                       for k in routes
-                      for i in positions[:LB - word_density[1]]), "WordAti")
+                      for i in positions[:LB - word_density[1]]), "WordAt")
 
     # Clique Cuts - Aggressive and might remove feasibility]
     if letter_spacing > 1:
-        m.addConstrs(sum(x[i+j, letter, k] for j in range(letter_spacing)) <= 1
+        m.addConstrs((sum(x[i+j, letter, k] for j in range(letter_spacing)) <= 1
                      for i in positions[:-letter_spacing]
                      for letter in letters7
-                     for k in routes)
+                     for k in routes), "Domino")
 
     # # Domino Constraints
     if tight_model:
@@ -253,6 +256,7 @@ def get_optimal_solution(words, initial_solution=None, num_strings=3, num_wildca
     #     # Write tuned parameters to a file
     #     m.write('tune.prm')
 
+    m.Params.lazyConstraints = 1
     m._x = x
     m._z = z
 
