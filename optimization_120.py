@@ -4,45 +4,31 @@ from helpers import get_tsp_solution, SPECIAL_CHARS, word_is_contained
 import time
 
 
-def get_optimal_solution(words, initial_solution=None, num_strings=3, num_wildcards=2, UB=None, LB=0,
-                         linear_relaxation=False, tight_model=True, word_density=None, save_model=False,
-                         letter_spacing=1, fix_suffix=0, assume_shortening=0):
+def maximize_specials(words, initial_solution=None, num_strings=3, num_wildcards=2,
+                      linear_relaxation=False, tight_model=True, word_density=None, save_model=False,
+                      letter_spacing=1):
+
     opt_time = time.time()
 
-    print(num_wildcards)
     num_letters = len(words[0])
     special1 = SPECIAL_CHARS[num_letters][0]
     special2 = SPECIAL_CHARS[num_letters][1]
 
+    special_words = [w for w in words if int(w[0]) == special1 and int(w[1]) == special2]
+
     print("Running optimization function...\n")
     print(f"Wildcards: {num_wildcards}")
 
-    if not initial_solution:
-        initial_solution = get_tsp_solution(words)
-
-    print(f"\nChecking initial solution, len={len(initial_solution)}")
-    print(initial_solution)
-    for w in words:
-        if not word_is_contained(w, initial_solution):
-            print(f"ERROR: MISSING WORD {w}")
-            return
-
-    if not UB:
-        UB = len(initial_solution)
-
-    if assume_shortening:
-        UB -= assume_shortening
-
-    print(f"LB:{LB}, UB:{UB}")
-
     print("Creating positions...")
-    positions = range(UB)
+    positions = range(len(special_words) * num_letters)
+
     print("Creating letters...")
     letters7 = range(1, (num_letters + 1))
     if num_wildcards:
         letters8 = range(1, (num_letters + 2))
     else:
         letters8 = range(1, (num_letters + 1))
+
     print("Creating strings...")
     routes = range(num_strings)
 
@@ -74,56 +60,13 @@ def get_optimal_solution(words, initial_solution=None, num_strings=3, num_wildca
                   ub=1,
                   name="z")
 
-    # Set starting solution
-    if not linear_relaxation and not assume_shortening:
-        wildcards_to_place = num_wildcards
-        for i, letter in enumerate(initial_solution):
-            if letter == '*':
-                x[i, letters8[-1], 0].start = 1
-                wildcards_to_place -= 1
-            else:
-                x[i, int(letter), 0].start = 1
-        if wildcards_to_place >= 1:
-            for letter in letters7:
-                x[0, letter, 0].start = 0
-            x[0, letters8[-1], 0].start = 1
-        if wildcards_to_place >= 2:
-            for letter in letters7:
-                x[num_letters, letter, 0].start = 0
-            x[num_letters, letters8[-1], 0].start = 1
-    for i in range(fix_suffix):
-        letter = initial_solution[i]
-        for fix_letter in letters8:
-            x[i, fix_letter, 0].lb = 0
-            x[i, fix_letter, 0].ub = 0
-        if letter == '*':
-            x[i, letters8[-1], 0].lb = 1
-            x[i, letters8[-1], 0].ub = 1
-        else:
-            x[i, int(letter), 0].lb = 1
-            x[i, int(letter), 0].ub = 1
-    if assume_shortening:
-        end_word = initial_solution[-num_letters:]
-        for i in range(num_letters):
-            letter = end_word[i]
-            if letter == '*':
-                x[len(initial_solution)-assume_shortening-num_letters+i, letters8[-1], 0].lb = 1
-                x[len(initial_solution)-assume_shortening-num_letters+i, letters8[-1], 0].ub = 1
-            else:
-                x[len(initial_solution)-assume_shortening-num_letters+i, int(letter), 0].lb = 1
-                x[len(initial_solution)-assume_shortening-num_letters+i, int(letter), 0].ub = 1
+    for i, _ in enumerate(special_words):
+        x[i*num_letters, int(special1), 0].lb = 1
+        x[i*num_letters+1, int(special1), 0].ub = 1
 
+    # Maximize the number of words
     print("Setting obj\n")
-    obj = m.addVar(name="obj")
-    m.setObjective(obj, GRB.MINIMIZE)
-
-    # Objective Calculation
-    m.addConstrs(obj >= (i + 1) * x.sum(i, "*", k) for i in positions for k in routes)
-
-    print(f"Writing {len([w for w in words if int(w[0]) != special1 or int(w[1]) != special2])} Free Word constraints...")
-    # Each free word must appear once
-    m.addConstrs((sum(sum(z[i, k, w] for k in routes) for i in positions[:(-num_letters + 1)]) >= 1
-                  for w in words if int(w[0]) != special1 or int(w[1]) != special2), "Word")
+    m.setObjective(z.sum('*', '*', 0), GRB.MAXIMIZE)
 
     print(f"Writing {len(routes) * len([w for w in words if int(w[0]) == special1 and int(w[1]) == special2])} Special Word constraints...")
     # Each special word must appear on each string
@@ -150,7 +93,6 @@ def get_optimal_solution(words, initial_solution=None, num_strings=3, num_wildca
                   for k in routes
                   for i in positions), "NumLettersAt")
 
-
     # There's at most one word at a position, as they are permutations, a wildcard can't help to have > 1
     print(f"Writing {len(positions) * len(routes)} WordAti constraints...")
     m.addConstrs((z.sum(i, k, '*') <= 1
@@ -175,19 +117,6 @@ def get_optimal_solution(words, initial_solution=None, num_strings=3, num_wildca
                       ), "Wordx")
 
     #####CUTS
-    if LB:
-        # There's at least one letter at a position lower than LB
-        print(f"Writing {LB * len(routes)} Letter at i < LB constraints...")
-        m.addConstrs((x.sum(i, '*', k) == 1
-                      for k in routes
-                      for i in positions[:LB + 1]), "LetterAti")
-
-    if LB and word_density:
-        # There's at least word_density[0] word at any string of length word_density[1] contained lower than LB
-        print(f"Writing {(LB - word_density[1]) * len(routes)} Word at i < LB  - 7 constraints...")
-        m.addConstrs((sum(z.sum(i + j, k, '*') for j in range(word_density[1])) >= word_density[0]
-                      for k in routes
-                      for i in positions[:LB - word_density[1]]), "WordAti")
 
     # Clique Cuts - Aggressive and might remove feasibility]
     if letter_spacing > 1:
@@ -243,31 +172,10 @@ def get_optimal_solution(words, initial_solution=None, num_strings=3, num_wildca
                     if val > 1e-8:
                         print(*key, val)
 
-    # m.tune()
-    #
-    # if m.tuneResultCount > 0:
-    #
-    #     # Load the best tuned parameters into the model
-    #     m.getTuneResult(0)
-    #
-    #     # Write tuned parameters to a file
-    #     m.write('tune.prm')
-
     m._x = x
     m._z = z
 
-    # Model Parameters
-    # m.setParam(GRB.Param.Heuristics, 1.0)
-    # m.setParam(GRB.Param.Symmetry, 2)
-    # m.setParam(GRB.Param.PreDepRow, 1)
-    if UB:
-        m.setParam(GRB.Param.Cutoff, UB)
-
-    # try:
-    #     m.computeIIS()
-    #     m.write("model.ilp")
-    # except:
-    #     pass
+    m.Params.lazyConstraints = 1
 
     print("Optimizing...")
     m.optimize(mycallback)
@@ -310,13 +218,6 @@ def get_optimal_solution(words, initial_solution=None, num_strings=3, num_wildca
                         print(f"{i}, {k}, {w},{z[i, k, w].x}")
             print()
 
-        print(f"\nChecking optimal string, len={len(opt_string)}")
-        print(opt_string)
-        for w in words:
-            if not word_is_contained(w, opt_string):
-                print(f"ERROR: MISSING WORD {w}")
-
-    print(f"get_optimal_solution Ellapsed {time.time() - opt_time}s")
-    # m.write("santa.sol")
+    print(f"maximize_specials Ellapsed {time.time() - opt_time}s")
 
     return opt_string

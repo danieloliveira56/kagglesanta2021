@@ -5,6 +5,7 @@
 *.log
 *.prm
 *.sol
+*.par
 *.lp
 __pycache__
 .idea
