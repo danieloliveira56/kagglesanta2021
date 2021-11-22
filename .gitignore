@@ -1,0 +1,11 @@
+*.ipynb
+*.exe
+*.txt
+*.atsp
+*.log
+*.prm
+*.sol
+*.lp
+__pycache__
+.idea
+LKH-3.0.7
