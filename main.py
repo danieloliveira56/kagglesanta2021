@@ -175,20 +175,20 @@ def local_search(num_letters=7, search_length=30, initial_solution=None, other_s
 
         for j in range(i-num_letters, i):
             if j >= 0:
-                print(j, position_map[j])
+                print(j, position_map[j], *[word_map[position_map[j]], position_map[j] in essential_words] if position_map[j] else "")
         print("----")
         for j in range(len(current_solution) - num_letters):
             if j in range(i, i+search_length-num_letters+1):
                 if position_map[j]:
                     search_words.add(position_map[j])
-                print(j, position_map[j])
+                print(j, position_map[j], *[word_map[position_map[j]], position_map[j] in essential_words] if position_map[j] else "")
             else:
                 if position_map[j]:
                     other_words.add(position_map[j])
         print("----")
         for j in range(i+search_length-num_letters+1, i+search_length):
             if j < len(current_solution):
-                print(j, position_map[j])
+                print(j, position_map[j], *[word_map[position_map[j]], position_map[j] in essential_words] if position_map[j] else "")
 
         num_wildcards = 0
         for j in range(i, i + search_length):
@@ -211,15 +211,15 @@ def local_search(num_letters=7, search_length=30, initial_solution=None, other_s
             j -= 1
 
         loose_following = 0
-        j = i + search_length - 1
-        while 0 < j and not position_map.get(j) and loose_following < num_letters:
+        j = i + search_length - num_letters + 1
+        while (not position_map.get(j) or len(word_map[position_map[j]]) > 1 or position_map[j] not in essential_words) and loose_following < num_letters:
             loose_following += 1
-            j -= 1
+            j += 1
 
         print(f"Loose_following: {loose_following}")
         print(f"Fix_suffix: {fix_suffix}")
 
-        if unique_search_words and (loose_following >= num_letters / 2 or fix_suffix < num_letters / 2):
+        if unique_search_words and (loose_following >= num_letters - 1): #  or fix_suffix < num_letters / 2
             print("Optimizing substring...")
             optimal_order = get_optimal_solution(
                 list(unique_search_words),
@@ -245,6 +245,7 @@ def local_search(num_letters=7, search_length=30, initial_solution=None, other_s
                     for w in essential_words:
                         if w not in new_words:
                             print(w)
+                            print("essential_words", essential_words)
                     print()
                 elif len(new_solution) < len(current_solution):
                     print("Found Improved Solution ####################################")
@@ -291,128 +292,128 @@ def local_search(num_letters=7, search_length=30, initial_solution=None, other_s
 #                     num_wildcards=2,
 #                     disperse_specials=True)
 
-words = get_words(7)
-
-special_words = [w for w in words if w[:2] == '54']
-other54_words = [w for w in words if ('54' in w) and w not in special_words]
-words_45 = [w for w in words if '45' in w]
-
-print(f"words: {len(words)}")
-print(f"special_words: {len(special_words)}")
-print(f"other54_words: {len(other54_words)}")
-print(f"words_45: {len(words_45)}")
-
-words54 = {}
-words54[0] = [w for w in words
-              if (w[0] == '5' and w[2] == '4')
-              or (w[0] == '5' and w[3] == '4')
-              or (w[0] == '5' and w[4] == '4')
-              or (w[0] == '5' and w[5] == '4')
-              or (w[0] == '5' and w[6] == '4')]
-
-words54[1] = [w for w in words
-              if (w[1] == '5' and w[3] == '4')
-              or (w[1] == '5' and w[4] == '4')
-              or (w[1] == '5' and w[5] == '4')
-              or (w[1] == '5' and w[6] == '4')]
-
-words54[2] = [w for w in words
-              if (w[2] == '5' and w[4] == '4')
-              or (w[2] == '5' and w[5] == '4')
-              or (w[2] == '5' and w[6] == '4')]
-
-words54[3] = [w for w in words
-              if (w[3] == '5' and w[5] == '4')
-              or (w[3] == '5' and w[6] == '4')]
-
-words54[4] = [w for w in words
-              if (w[4] == '5' and w[6] == '4')]
-
-words45 = {}
-words45[0] = [w for w in words
-              if (w[0] == '4' and w[2] == '5')
-              or (w[0] == '4' and w[3] == '5')
-              or (w[0] == '4' and w[4] == '5')
-              or (w[0] == '4' and w[5] == '5')
-              or (w[0] == '4' and w[6] == '5')]
-
-words45[1] = [w for w in words
-              if (w[1] == '4' and w[3] == '5')
-              or (w[1] == '4' and w[4] == '5')
-              or (w[1] == '4' and w[5] == '5')
-              or (w[1] == '4' and w[6] == '5')]
-
-words45[2] = [w for w in words
-              if (w[2] == '4' and w[4] == '5')
-              or (w[2] == '4' and w[5] == '5')
-              or (w[2] == '4' and w[6] == '5')]
-
-words45[3] = [w for w in words
-              if (w[3] == '4' and w[5] == '5')
-              or (w[3] == '4' and w[6] == '5')]
-
-words45[4] = [w for w in words
-              if (w[4] == '4' and w[6] == '5')]
-
-total_words = len(special_words)
-total_words += len(other54_words)
-total_words += len(words_45)
-for i in range(5):
-    print(len(words54[i]))
-    print(len(words45[i]))
-    total_words += len(words54[i])
-    total_words += len(words45[i])
-print()
-print(total_words)
-print()
-
-groups = [[], [], []]
-
-groups[0] += special_words
-groups[1] += special_words
-groups[2] += special_words
-
-groups[0] += other54_words[:200]
-groups[1] += other54_words[200:400]
-groups[2] += other54_words[400:]
-
-for i in range(3):
-    print(len(groups[i]))
-print()
-
-groups[0] += words_45[:240]
-groups[1] += words_45[240:480]
-groups[2] += words_45[480:]
-
-for i in range(3):
-    print(len(groups[i]))
-print()
-
-for i in range(5):
-    s = len(words54[i]) // 3
-    print(s, len(words54[i]))
-    print(len(words54[i][:s]))
-    print(len(words54[i][s:2 * s]))
-    print(len(words54[i][2 * s:]))
-
-    groups[0] += words54[i][:s]
-    groups[1] += words54[i][s:2 * s]
-    groups[2] += words54[i][2 * s:]
-
-    s = len(words45[i]) // 3
-    print(s, len(words45[i]))
-    print(len(words45[i][:s]))
-    print(len(words45[i][s:2 * s]))
-    print(len(words45[i][2 * s:]))
-    groups[0] += words45[i][:s]
-    groups[1] += words45[i][s:2 * s]
-    groups[2] += words45[i][2 * s:]
-    for i in range(3):
-        print(len(groups[i]))
-
-for i in range(3):
-    print(len(groups[i]))
-
-for g in groups:
-    string1 = get_optimal_solution(g, num_strings=1, num_wildcards=2)
-    print(len(string1), string1)
+# words = get_words(7)
+#
+# special_words = [w for w in words if w[:2] == '54']
+# other54_words = [w for w in words if ('54' in w) and w not in special_words]
+# words_45 = [w for w in words if '45' in w]
+#
+# print(f"words: {len(words)}")
+# print(f"special_words: {len(special_words)}")
+# print(f"other54_words: {len(other54_words)}")
+# print(f"words_45: {len(words_45)}")
+#
+# words54 = {}
+# words54[0] = [w for w in words
+#               if (w[0] == '5' and w[2] == '4')
+#               or (w[0] == '5' and w[3] == '4')
+#               or (w[0] == '5' and w[4] == '4')
+#               or (w[0] == '5' and w[5] == '4')
+#               or (w[0] == '5' and w[6] == '4')]
+#
+# words54[1] = [w for w in words
+#               if (w[1] == '5' and w[3] == '4')
+#               or (w[1] == '5' and w[4] == '4')
+#               or (w[1] == '5' and w[5] == '4')
+#               or (w[1] == '5' and w[6] == '4')]
+#
+# words54[2] = [w for w in words
+#               if (w[2] == '5' and w[4] == '4')
+#               or (w[2] == '5' and w[5] == '4')
+#               or (w[2] == '5' and w[6] == '4')]
+#
+# words54[3] = [w for w in words
+#               if (w[3] == '5' and w[5] == '4')
+#               or (w[3] == '5' and w[6] == '4')]
+#
+# words54[4] = [w for w in words
+#               if (w[4] == '5' and w[6] == '4')]
+#
+# words45 = {}
+# words45[0] = [w for w in words
+#               if (w[0] == '4' and w[2] == '5')
+#               or (w[0] == '4' and w[3] == '5')
+#               or (w[0] == '4' and w[4] == '5')
+#               or (w[0] == '4' and w[5] == '5')
+#               or (w[0] == '4' and w[6] == '5')]
+#
+# words45[1] = [w for w in words
+#               if (w[1] == '4' and w[3] == '5')
+#               or (w[1] == '4' and w[4] == '5')
+#               or (w[1] == '4' and w[5] == '5')
+#               or (w[1] == '4' and w[6] == '5')]
+#
+# words45[2] = [w for w in words
+#               if (w[2] == '4' and w[4] == '5')
+#               or (w[2] == '4' and w[5] == '5')
+#               or (w[2] == '4' and w[6] == '5')]
+#
+# words45[3] = [w for w in words
+#               if (w[3] == '4' and w[5] == '5')
+#               or (w[3] == '4' and w[6] == '5')]
+#
+# words45[4] = [w for w in words
+#               if (w[4] == '4' and w[6] == '5')]
+#
+# total_words = len(special_words)
+# total_words += len(other54_words)
+# total_words += len(words_45)
+# for i in range(5):
+#     print(len(words54[i]))
+#     print(len(words45[i]))
+#     total_words += len(words54[i])
+#     total_words += len(words45[i])
+# print()
+# print(total_words)
+# print()
+#
+# groups = [[], [], []]
+#
+# groups[0] += special_words
+# groups[1] += special_words
+# groups[2] += special_words
+#
+# groups[0] += other54_words[:200]
+# groups[1] += other54_words[200:400]
+# groups[2] += other54_words[400:]
+#
+# for i in range(3):
+#     print(len(groups[i]))
+# print()
+#
+# groups[0] += words_45[:240]
+# groups[1] += words_45[240:480]
+# groups[2] += words_45[480:]
+#
+# for i in range(3):
+#     print(len(groups[i]))
+# print()
+#
+# for i in range(5):
+#     s = len(words54[i]) // 3
+#     print(s, len(words54[i]))
+#     print(len(words54[i][:s]))
+#     print(len(words54[i][s:2 * s]))
+#     print(len(words54[i][2 * s:]))
+#
+#     groups[0] += words54[i][:s]
+#     groups[1] += words54[i][s:2 * s]
+#     groups[2] += words54[i][2 * s:]
+#
+#     s = len(words45[i]) // 3
+#     print(s, len(words45[i]))
+#     print(len(words45[i][:s]))
+#     print(len(words45[i][s:2 * s]))
+#     print(len(words45[i][2 * s:]))
+#     groups[0] += words45[i][:s]
+#     groups[1] += words45[i][s:2 * s]
+#     groups[2] += words45[i][2 * s:]
+#     for i in range(3):
+#         print(len(groups[i]))
+#
+# for i in range(3):
+#     print(len(groups[i]))
+#
+# for g in groups:
+#     string1 = get_optimal_solution(g, num_strings=1, num_wildcards=2)
+#     print(len(string1), string1)

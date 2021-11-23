@@ -162,7 +162,7 @@ def get_optimal_solution(words, initial_solution=None, num_strings=3, num_wildca
 
     if tight_model:
         # A word cannot be at i if the letter at i+j is not
-        print(f"Writing {len(positions[:(-num_letters + 1)]) * len(routes) * len(words) * num_letters} Wordx constraints...")
+        print(f"Writing {len(positions[:(-num_letters + 1)]) * len(routes) * len(words) * num_letters} WordAt constraints...")
         m.addConstrs((z[i, k, w] <= x[i + j, int(w[j]), k] + (x[i + j, letters8[-1], k] if num_wildcards else 0)
                       for i in positions[:(-num_letters + 1)]
                       for k in routes
@@ -170,12 +170,12 @@ def get_optimal_solution(words, initial_solution=None, num_strings=3, num_wildca
                       for j in range(num_letters)
                       ), "WordAt").Lazy = 1
     else:
-        print(f"Writing {len(positions[:(-num_letters + 1)]) * len(routes) * len(words)} Wordx constraints...")
+        print(f"Writing {len(positions[:(-num_letters + 1)]) * len(routes) * len(words)} WordAt constraints...")
         m.addConstrs((num_letters * z[i, k, w] <= sum(x[i + j, int(w[j]), k] + (x[i + j, letters8[-1], k] if num_wildcards else 0) for j in range(num_letters))
                       for i in positions[:(-num_letters + 1)]
                       for k in routes
                       for w in words
-                      ), "Wordx")
+                      ), "WordAt")
 
     #####CUTS
     if LB:
