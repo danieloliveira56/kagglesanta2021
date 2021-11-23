@@ -99,22 +99,22 @@ def maximize_specials(words, initial_solution=None, num_strings=3, num_wildcards
                   for k in routes
                   for i in positions[:(-num_letters + 1)]), "num_letters")
 
-    if tight_model:
-        # A word cannot be at i if the letter at i+j is not
-        print(f"Writing {len(positions[:(-num_letters + 1)]) * len(routes) * len(words) * num_letters} Wordx constraints...")
-        m.addConstrs((z[i, k, w] <= x[i + j, int(w[j]), k] + (x[i + j, letters8[-1], k] if num_wildcards else 0)
-                      for i in positions[:(-num_letters + 1)]
-                      for k in routes
-                      for w in words
-                      for j in range(num_letters)
-                      ), "Wordx").Lazy = 1
-    else:
-        print(f"Writing {len(positions[:(-num_letters + 1)]) * len(routes) * len(words)} Wordx constraints...")
-        m.addConstrs((num_letters * z[i, k, w] <= sum(x[i + j, int(w[j]), k] + (x[i + j, letters8[-1], k] if num_wildcards else 0) for j in range(num_letters))
-                      for i in positions[:(-num_letters + 1)]
-                      for k in routes
-                      for w in words
-                      ), "Wordx")
+    # if tight_model:
+    #     # A word cannot be at i if the letter at i+j is not
+    #     print(f"Writing {len(positions[:(-num_letters + 1)]) * len(routes) * len(words) * num_letters} Wordx constraints...")
+    #     m.addConstrs((z[i, k, w] <= x[i + j, int(w[j]), k] + (x[i + j, letters8[-1], k] if num_wildcards else 0)
+    #                   for i in positions[:(-num_letters + 1)]
+    #                   for k in routes
+    #                   for w in words
+    #                   for j in range(num_letters)
+    #                   ), "Wordx").Lazy = 1
+    # else:
+    #     print(f"Writing {len(positions[:(-num_letters + 1)]) * len(routes) * len(words)} Wordx constraints...")
+    #     m.addConstrs((num_letters * z[i, k, w] <= sum(x[i + j, int(w[j]), k] + (x[i + j, letters8[-1], k] if num_wildcards else 0) for j in range(num_letters))
+    #                   for i in positions[:(-num_letters + 1)]
+    #                   for k in routes
+    #                   for w in words
+    #                   ), "Wordx")
 
     #####CUTS
 
@@ -153,8 +153,21 @@ def maximize_specials(words, initial_solution=None, num_strings=3, num_wildcards
             print()
         print()
 
+
     def mycallback(model, where):
         if where == GRB.Callback.MIPSOL:
+            z_sol = model.cbGetSolution(model._z)
+            for i in positions():
+                for k in routes():
+                    if z_sol.sum(i, k, '*') <= 1:
+                        continue
+                    print(f"Adding {i}, {k}, '*' cut..." )
+                    model.cbLazy(
+                        (z[i, k, w] <= x[i + j, int(w[j]), k] + (x[i + j, letters8[-1], k] if num_wildcards else 0)
+                         for w in words
+                         for j in range(num_letters))
+                    )
+
             # MIP solution callback
             print(f'\nCurrent Best Solution ({model.cbGet(GRB.Callback.MIPSOL_OBJ)}):')
             x_sol = model.cbGetSolution(model._x)
